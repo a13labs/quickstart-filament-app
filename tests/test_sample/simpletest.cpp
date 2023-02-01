@@ -15,9 +15,7 @@
 */
 #include "gtest/gtest.h"
 
-TEST(AntomicCoreTest, LayerTests)
+TEST(SampleTests, SampleTest)
 {
-
-    // A test layer
-    EXPECT_EQ("sample_test", "sample_test");
+    EXPECT_EQ(2,2);
 }
