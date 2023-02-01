@@ -22,8 +22,28 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_OUTPUT_DIR}/bin")
 set(CMAKE_INSTALL_PREFIX "${PROJECT_OUTPUT_DIR}/dist")
 
 # Google Filament
-SET(OLD_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-AddExternalProject(filament git@github.com:alexyz79/filament.git main)
+if (UNIX AND NOT APPLE AND NOT ANDROID AND NOT WEBGL)
+    set(LINUX TRUE)
+else()
+    # since cmake 3.25 LINUX is automatically set based on CMAKE_SYSTEM_NAME, which the android
+    # cmake files are setting to "Linux".
+    set(LINUX FALSE)
+endif()
+
+# Backup default CXX flags
+set(DEFAULT_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+if (LINUX)
+  execute_process( COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE clang_full_version_string )
+  string (REGEX REPLACE ".*clang version ([0-9]+\\.[0-9]+).*" "\\1" CLANG_VERSION_STRING ${clang_full_version_string})
+  if (CLANG_VERSION_STRING VERSION_GREATER_EQUAL 14)
+    message(STATUS "Detected clang ${CLANG_VERSION_STRING}>=14.0 Adding -fno-builtin and -lm.")
+    set(CMAKE_CXX_FLAGS "-fno-builtin")
+    link_libraries("-lm")
+  endif()
+endif()
+
+AddExternalProject(filament https://github.com/google/filament.git v1.31.2)
 set(FILAMENT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/filament-src/filament/include")
 
 set(FILAMENT_LIBS 
@@ -39,7 +59,9 @@ set(FILAMENT_LIBS
   vkshaders 
   ibl
 )
-SET(CMAKE_CXX_FLAGS ${OLD_CMAKE_CXX_FLAGS})
+
+# Restore default CXX flags
+set(CMAKE_CXX_FLAGS ${DEFAULT_CMAKE_CXX_FLAGS})
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   add_definitions(-DAPP_DEBUG)
@@ -57,20 +79,23 @@ if(WIN32)
   add_definitions(-DPLATFORM_WINDOWS)
 elseif (UNIX)
   add_definitions(-DPLATFORM_LINUX)
-endif(WIN32)
+endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  find_package(Threads REQUIRED)
-  link_libraries("-static-libgcc -static-libstdc++")
-  link_libraries(libc++.a)
-  link_libraries(libc++abi.a)  
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -Wall -Werror -Wno-c++17-extensions -Wno-unused-command-line-argument")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -Wall -Werror -Wno-c++17-extensions -Wno-unused-command-line-argument")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   message(FATAL_ERROR "GCC not supported yet")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
   # using Intel C++
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W3")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W3")
+endif()
+
+if (LINUX)
+  find_package(Threads REQUIRED)
+  link_libraries("-static-libgcc -static-libstdc++")
+  link_libraries(libc++.a)
+  link_libraries(libc++abi.a)  
 endif()
 
 # Include custom configuration if required

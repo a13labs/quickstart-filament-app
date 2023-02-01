@@ -8,5 +8,4 @@ target_link_libraries(
     ${APP_CURRENT_TARGET}
     PUBLIC
     ${FILAMENT_LIBS}
-    pthread c++ dl m
 )
