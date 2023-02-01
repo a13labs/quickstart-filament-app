@@ -6,7 +6,7 @@ include(cmake/ExternalDeps.cmake)
 include(cmake/Build.cmake)
 
 project(
-  CPP_APP
+  FILAMENT_APP
   VERSION ${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_RELEASE}
   DESCRIPTION ${APP_DESCRIPTION}
   HOMEPAGE_URL ${APP_HOMEPAGE_URL}
@@ -62,7 +62,7 @@ if(FILAMENT_SUPPORTS_OPENGL AND NOT IOS AND NOT ANDROID AND NOT WEBGL)
 endif()
 
 if (FILAMENT_SUPPORTS_VULKAN)
-message(STATUS "OpenGL vulkan available!")
+message(STATUS "Vulkan backend available!")
 list(APPEND FILAMENT_LIBS bluevk vkshaders smol-v)  
 endif()
 
