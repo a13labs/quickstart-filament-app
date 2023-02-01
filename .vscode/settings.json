@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "memory_resource": "cpp"
+    },
+    "cmake.configureOnOpen": true,
+    "cmake.configureEnvironment": {
+        "CC": "/usr/bin/clang",
+        "CXX": "/usr/bin/clang"
+    }
+}
