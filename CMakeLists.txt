@@ -49,16 +49,22 @@ set(FILAMENT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/filament-src/filament/incl
 set(FILAMENT_LIBS 
   filament 
   backend 
-  bluegl 
-  bluevk 
   filabridge 
   filaflat 
   utils 
   geometry 
-  smol-v 
-  vkshaders 
   ibl
 )
+
+if(FILAMENT_SUPPORTS_OPENGL AND NOT IOS AND NOT ANDROID AND NOT WEBGL)
+  message(STATUS "OpenGL backend available!")
+  list(APPEND FILAMENT_LIBS bluegl)  
+endif()
+
+if (FILAMENT_SUPPORTS_VULKAN)
+message(STATUS "OpenGL vulkan available!")
+list(APPEND FILAMENT_LIBS bluevk vkshaders smol-v)  
+endif()
 
 # Restore default CXX flags
 set(CMAKE_CXX_FLAGS ${DEFAULT_CMAKE_CXX_FLAGS})
@@ -74,29 +80,51 @@ else ()
   set(BUILD_ARCH "x86")
 endif ()
 
-# Platform specific configuration
-if(WIN32)
-  add_definitions(-DPLATFORM_WINDOWS)
-elseif (UNIX)
-  add_definitions(-DPLATFORM_LINUX)
-endif()
-
+# Compiler specific configuration
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -Wall -Werror -Wno-c++17-extensions -Wno-unused-command-line-argument")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  message(FATAL_ERROR "GCC not supported yet")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
-  # using Intel C++
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -stdlib=libc++ -Wall -Werror -Wno-c++17-extensions -Wno-unused-command-line-argument")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W3")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 /std:c++20")
+  elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  message(FATAL_ERROR "GCC not supported yet")
+else ()
+  message(FATAL_ERROR "Compiler not supported yet")
 endif()
 
+# Platform specific configuration
 if (LINUX)
   find_package(Threads REQUIRED)
   link_libraries("-static-libgcc -static-libstdc++")
   link_libraries(libc++.a)
   link_libraries(libc++abi.a)  
+  add_definitions(-DPLATFORM_LINUX)
+elseif (WIN32)
+  # Link statically against c/c++ lib to avoid missing redistriburable such as
+  # "VCRUNTIME140.dll not found. Try reinstalling the app.", but give users
+  # a choice to opt for the shared runtime if they want.
+  add_compile_options(
+      $<$<CONFIG:>:/MT>
+      $<$<CONFIG:Debug>:/MTd>
+      $<$<CONFIG:Release>:/MT>
+  )
+
+  # TODO: Figure out why pdb generation messes with incremental compilaton.
+  # IN RELEASE_WITH_DEBUG_INFO, generate debug info in .obj, no in pdb.
+  set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Z7")
+  set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} /Z7")
+
+  # In RELEASE, also generate PDBs.
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} /Zi")
+
+  # In DEBUG, avoid generating a PDB file which seems to mess with incremental compilation.
+  # Instead generate debug info directly inside obj files.
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Z7")
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Z7")
+
+  add_definitions(-DPLATFORM_WINDOWS)
 endif()
+
 
 # Include custom configuration if required
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.cmake")
